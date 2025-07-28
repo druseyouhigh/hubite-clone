@@ -1,0 +1,337 @@
+---
+import BaseLayout from '../ui/layouts/BaseLayout.astro';
+import CreatorCard from '../ui/components/CreatorCard.astro';
+import { t } from '../lib/i18n';
+import type { Creator } from '../types/strapi';
+
+// Демо-дані безкоштовних створювачів
+const freeCreators: Creator[] = [
+  {
+    id: 2,
+    documentId: 'creator-2',
+    attributes: {
+      name: 'Марія Петренко',
+      username: 'maria_petrenko',
+      displayName: 'Марія П.',
+      bio: 'Фітнес-тренер та модель з Одеси. Мотивуючий контент та ексклюзивні тренування! 💪🔥',
+      slug: 'maria-petrenko',
+      isFree: true,
+      subscriptionPrice: 0,
+      hasFreeTrial: false,
+      verified: true,
+      featured: false,
+      isActive: true,
+      stats: {
+        posts: 156,
+        photos: 120,
+        videos: 36,
+        likes: 9850,
+        subscribers: 5200
+      },
+      categories: {
+        data: [{
+          id: 2,
+          documentId: 'cat-2',
+          attributes: {
+            name: 'Fitness',
+            slug: 'fitness',
+            isAdult: false,
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }]
+      },
+      location: {
+        data: {
+          id: 2,
+          documentId: 'loc-2',
+          attributes: {
+            name: 'Одеса',
+            country: 'Україна',
+            countryCode: 'UA',
+            city: 'Одеса',
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }
+      },
+      createdAt: '2024-02-01',
+      updatedAt: '2024-12-01',
+      publishedAt: '2024-02-01'
+    }
+  },
+  {
+    id: 3,
+    documentId: 'creator-3',
+    attributes: {
+      name: 'Софія Коваль',
+      username: 'sofia_koval',
+      displayName: 'Софія К.',
+      bio: 'Художниця та фотограф з Львова. Творчий контент та натхнення кожен день! 🎨📷',
+      slug: 'sofia-koval',
+      isFree: true,
+      subscriptionPrice: 0,
+      hasFreeTrial: false,
+      verified: false,
+      featured: false,
+      isActive: true,
+      stats: {
+        posts: 89,
+        photos: 75,
+        videos: 14,
+        likes: 3420,
+        subscribers: 1800
+      },
+      categories: {
+        data: [{
+          id: 3,
+          documentId: 'cat-3',
+          attributes: {
+            name: 'Art',
+            slug: 'art',
+            isAdult: false,
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }]
+      },
+      location: {
+        data: {
+          id: 3,
+          documentId: 'loc-3',
+          attributes: {
+            name: 'Львів',
+            country: 'Україна',
+            countryCode: 'UA',
+            city: 'Львів',
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }
+      },
+      createdAt: '2024-03-01',
+      updatedAt: '2024-12-01',
+      publishedAt: '2024-03-01'
+    }
+  }
+];
+
+const totalFreeCreators = 3200;
+const categories = [
+  { name: 'Fitness', count: 450, slug: 'fitness' },
+  { name: 'Art', count: 320, slug: 'art' },
+  { name: 'Music', count: 280, slug: 'music' },
+  { name: 'Gaming', count: 240, slug: 'gaming' },
+  { name: 'Lifestyle', count: 380, slug: 'lifestyle' },
+  { name: 'Education', count: 150, slug: 'education' }
+];
+---
+
+<BaseLayout 
+  title={t('freeOnlyFans.title')}
+  description={t('seo.freeOnlyFansDescription')}
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+          💸 Безкоштовні
+          <span class="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            OnlyFans
+          </span>
+          акаунти
+        </h1>
+        <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600">
+          Відкрий для себе {totalFreeCreators.toLocaleString()}+ безкоштовних профілів з якісним контентом. Без підписки, без прихованих платежів.
+        </p>
+        
+        <!-- Search Bar -->
+        <div class="mx-auto mt-10 max-w-xl">
+          <div class="relative">
+            <input
+              type="search"
+              placeholder="Пошук серед безкоштовних акаунтів..."
+              class="w-full rounded-full border-0 bg-white py-4 pl-6 pr-16 text-gray-900 shadow-lg ring-1 ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-green-600 sm:text-sm"
+            />
+            <button class="absolute inset-y-0 right-0 flex items-center pr-4">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="mx-auto mt-10 grid max-w-4xl grid-cols-1 gap-8 sm:grid-cols-3">
+          <div class="text-center">
+            <div class="text-3xl font-bold text-green-600">{totalFreeCreators.toLocaleString()}+</div>
+            <div class="text-sm text-gray-600">Безкоштовних профілів</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-emerald-600">100%</div>
+            <div class="text-sm text-gray-600">Без прихованих платежів</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-teal-600">Щодня</div>
+            <div class="text-sm text-gray-600">Нові профілі</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Filters -->
+  <section class="bg-white py-8 shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <!-- Categories Filter -->
+        <div class="flex flex-wrap gap-2">
+          <span class="text-sm font-medium text-gray-700">Категорії:</span>
+          {categories.map((category) => (
+            <a 
+              href={`/categories/${category.slug}?free=true`}
+              class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-green-100 hover:text-green-800 transition-colors"
+            >
+              {category.name}
+              <span class="ml-1 text-gray-500">({category.count})</span>
+            </a>
+          ))}
+        </div>
+        
+        <!-- Sort -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-medium text-gray-700">Сортування:</span>
+          <select class="rounded-lg border border-gray-300 px-3 py-1 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500">
+            <option value="recent">Нещодавно додані</option>
+            <option value="popular">Популярні</option>
+            <option value="name">За ім'ям</option>
+            <option value="posts">За кількістю постів</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Free Creators Grid -->
+  <section class="py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-900">
+          Безкоштовні профілі ({freeCreators.length} з {totalFreeCreators.toLocaleString()})
+        </h2>
+        <p class="mt-2 text-gray-600">
+          Всі профілі нижче повністю безкоштовні. Немає прихованих платежів або обов'язкових підписок.
+        </p>
+      </div>
+      
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {freeCreators.map((creator) => (
+          <CreatorCard creator={creator} />
+        ))}
+      </div>
+      
+      <!-- Load More -->
+      <div class="mt-12 text-center">
+        <button class="rounded-lg bg-green-600 px-8 py-3 text-base font-medium text-white hover:bg-green-700 transition-colors">
+          Завантажити більше профілів
+        </button>
+        <p class="mt-2 text-sm text-gray-500">
+          Показано {freeCreators.length} з {totalFreeCreators.toLocaleString()} безкоштовних профілів
+        </p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Benefits Section -->
+  <section class="bg-green-50 py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold tracking-tight text-gray-900">
+          Чому обирати безкоштовні акаунти?
+        </h2>
+        <p class="mt-4 text-lg text-gray-600">
+          Переваги безкоштовних OnlyFans профілів
+        </p>
+      </div>
+      
+      <div class="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="text-center">
+          <div class="mx-auto h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+          </div>
+          <h3 class="mt-4 text-lg font-semibold text-gray-900">Без витрат</h3>
+          <p class="mt-2 text-gray-600">
+            Повністю безкоштовний доступ до контенту без будь-яких підписок або платежів.
+          </p>
+        </div>
+        
+        <div class="text-center">
+          <div class="mx-auto h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 class="mt-4 text-lg font-semibold text-gray-900">Якісний контент</h3>
+          <p class="mt-2 text-gray-600">
+            Високоякісні фото, відео та пости від талановитих створювачів.
+          </p>
+        </div>
+        
+        <div class="text-center">
+          <div class="mx-auto h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="mt-4 text-lg font-semibold text-gray-900">Миттєвий доступ</h3>
+          <p class="mt-2 text-gray-600">
+            Негайний доступ до профілів без очікування або схвалення.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- FAQ Section -->
+  <section class="py-16">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold tracking-tight text-gray-900">
+          Часті запитання
+        </h2>
+      </div>
+      
+      <div class="mt-12 space-y-8">
+        <div class="border-b border-gray-200 pb-8">
+          <h3 class="text-lg font-semibold text-gray-900">
+            Чи справді всі акаунти безкоштовні?
+          </h3>
+          <p class="mt-2 text-gray-600">
+            Так, всі профілі в цій секції повністю безкоштовні. Створювачі надають контент без будь-яких підписок або платежів.
+          </p>
+        </div>
+        
+        <div class="border-b border-gray-200 pb-8">
+          <h3 class="text-lg font-semibold text-gray-900">
+            Як часто додаються нові безкоштовні профілі?
+          </h3>
+          <p class="mt-2 text-gray-600">
+            Ми додаємо нові безкоштовні профілі щодня. Наша команда постійно шукає нових створювачів, які пропонують якісний безкоштовний контент.
+          </p>
+        </div>
+        
+        <div class="border-b border-gray-200 pb-8">
+          <h3 class="text-lg font-semibold text-gray-900">
+            Чи можуть безкоштовні акаунти стати платними?
+          </h3>
+          <p class="mt-2 text-gray-600">
+            Так, створювачі можуть змінити свою модель монетизації. Ми регулярно оновлюємо статус профілів та видаляємо ті, що стали платними.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout> 

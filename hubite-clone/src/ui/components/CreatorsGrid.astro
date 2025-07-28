@@ -1,0 +1,73 @@
+---
+import CreatorCard from './CreatorCard.astro';
+import { t } from '../../lib/i18n';
+import type { Creator } from '../../types/strapi';
+
+interface Props {
+  creators: Creator[];
+  title?: string;
+  showLoadMore?: boolean;
+  className?: string;
+}
+
+const { 
+  creators, 
+  title,
+  showLoadMore = false,
+  className = ''
+} = Astro.props;
+---
+
+{title && (
+  <div class="text-center mb-12">
+    <h2 class="text-3xl font-bold text-gray-900 sm:text-4xl">
+      {title}
+    </h2>
+  </div>
+)}
+
+<div class={`grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${className}`}>
+  {creators.map((creator) => (
+    <CreatorCard creator={creator} />
+  ))}
+</div>
+
+{showLoadMore && creators.length > 0 && (
+  <div class="mt-12 text-center">
+    <button 
+      class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-all duration-200"
+      id="load-more-btn"
+    >
+      {t('common.loadMore')}
+      <svg class="ml-2 -mr-1 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      </svg>
+    </button>
+  </div>
+)}
+
+{creators.length === 0 && (
+  <div class="text-center py-12">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29.82-5.877 2.172M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.25a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No creators found</h3>
+    <p class="mt-1 text-sm text-gray-500">
+      Try adjusting your search criteria or browse different categories.
+    </p>
+  </div>
+)}
+
+<script>
+  // Load more functionality (placeholder for future implementation)
+  document.addEventListener('DOMContentLoaded', () => {
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', () => {
+        // TODO: Implement load more functionality with API call
+        console.log('Load more creators...');
+      });
+    }
+  });
+</script> 

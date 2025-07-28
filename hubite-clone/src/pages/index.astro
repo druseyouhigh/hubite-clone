@@ -1,0 +1,315 @@
+---
+import BaseLayout from '../ui/layouts/BaseLayout.astro';
+import CreatorCard from '../ui/components/CreatorCard.astro';
+import { strapiClient } from '../lib/strapi';
+import { t, formatNumber } from '../lib/i18n';
+import type { Creator } from '../types/strapi';
+
+// Заглушки даних для демонстрації (поки Strapi не налаштовано)
+const mockCreators: Creator[] = [
+  {
+    id: 1,
+    documentId: 'creator-1',
+    attributes: {
+      name: 'Анна Козлова',
+      username: 'anna_kozlova',
+      displayName: 'Анна К.',
+      bio: 'Український контент-креатор. Люблю фотографію та мистецтво. Ексклюзивний контент щодня! 📸✨',
+      slug: 'anna-kozlova',
+      isFree: false,
+      subscriptionPrice: 12.99,
+      hasFreeTrial: true,
+      verified: true,
+      featured: true,
+      isActive: true,
+      stats: {
+        posts: 245,
+        photos: 180,
+        videos: 65,
+        likes: 15420,
+        subscribers: 8750
+      },
+      categories: {
+        data: [{
+          id: 1,
+          documentId: 'cat-1',
+          attributes: {
+            name: 'Amateur',
+            slug: 'amateur',
+            isAdult: true,
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }]
+      },
+      location: {
+        data: {
+          id: 1,
+          documentId: 'loc-1',
+          attributes: {
+            name: 'Київ',
+            country: 'Україна',
+            countryCode: 'UA',
+            city: 'Київ',
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }
+      },
+      trialLink: 'https://onlyfans.com/anna_kozlova',
+      createdAt: '2024-01-01',
+      updatedAt: '2024-12-01',
+      publishedAt: '2024-01-01'
+    }
+  },
+  {
+    id: 2,
+    documentId: 'creator-2',
+    attributes: {
+      name: 'Марія Петренко',
+      username: 'maria_petrenko',
+      displayName: 'Марія П.',
+      bio: 'Фітнес-тренер та модель з Одеси. Мотивуючий контент та ексклюзивні тренування! 💪🔥',
+      slug: 'maria-petrenko',
+      isFree: true,
+      subscriptionPrice: 0,
+      hasFreeTrial: false,
+      verified: true,
+      featured: false,
+      isActive: true,
+      stats: {
+        posts: 156,
+        photos: 120,
+        videos: 36,
+        likes: 9850,
+        subscribers: 5200
+      },
+      categories: {
+        data: [{
+          id: 2,
+          documentId: 'cat-2',
+          attributes: {
+            name: 'Fitness',
+            slug: 'fitness',
+            isAdult: false,
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }]
+      },
+      location: {
+        data: {
+          id: 2,
+          documentId: 'loc-2',
+          attributes: {
+            name: 'Одеса',
+            country: 'Україна',
+            countryCode: 'UA',
+            city: 'Одеса',
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        }
+      },
+      createdAt: '2024-02-01',
+      updatedAt: '2024-12-01',
+      publishedAt: '2024-02-01'
+    }
+  }
+];
+
+// Категорії для демонстрації
+const popularCategories = [
+  { name: 'Amateur', slug: 'amateur', icon: '🎭', count: 1250 },
+  { name: 'Asian', slug: 'asian', icon: '🌸', count: 890 },
+  { name: 'MILF', slug: 'milf', icon: '👩', count: 756 },
+  { name: 'Cosplay', slug: 'cosplay', icon: '🎮', count: 645 },
+  { name: 'Fitness', slug: 'fitness', icon: '💪', count: 523 },
+  { name: 'Ebony', slug: 'ebony', icon: '✨', count: 489 }
+];
+---
+
+<BaseLayout 
+  title={t('nav.home')}
+  description={t('seo.homeDescription')}
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+          Знайди найкращих
+          <span class="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+            OnlyFans
+          </span>
+          створювачів
+        </h1>
+        <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600">
+          Відкрий для себе тисячі верифікованих профілів, безкоштовні акаунти та ексклюзивний контент від найкращих створювачів з усього світу.
+        </p>
+        
+        <!-- Search Bar -->
+        <div class="mx-auto mt-10 max-w-xl">
+          <div class="relative">
+            <input
+              type="search"
+              placeholder="Пошук за ім'ям, username, TikTok, Instagram..."
+              class="w-full rounded-full border-0 bg-white py-4 pl-6 pr-16 text-gray-900 shadow-lg ring-1 ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-pink-600 sm:text-sm"
+            />
+            <button class="absolute inset-y-0 right-0 flex items-center pr-4">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-8 sm:grid-cols-4">
+          <div class="text-center">
+            <div class="text-3xl font-bold text-pink-600">12,500+</div>
+            <div class="text-sm text-gray-600">Створювачів</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-purple-600">3,200+</div>
+            <div class="text-sm text-gray-600">Безкоштовних</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-indigo-600">95%</div>
+            <div class="text-sm text-gray-600">Верифіковані</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-green-600">24/7</div>
+            <div class="text-sm text-gray-600">Оновлення</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Popular Categories -->
+  <section class="py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold tracking-tight text-gray-900">
+          Популярні категорії
+        </h2>
+        <p class="mt-4 text-lg text-gray-600">
+          Знайди контент, який тебе цікавить
+        </p>
+      </div>
+      
+      <div class="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        {popularCategories.map((category) => (
+          <a 
+            href={`/categories/${category.slug}`}
+            class="group relative overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200 hover:shadow-md hover:ring-pink-300 transition-all"
+          >
+            <div class="text-center">
+              <div class="text-3xl mb-3">{category.icon}</div>
+              <h3 class="font-semibold text-gray-900 group-hover:text-pink-600">
+                {category.name}
+              </h3>
+              <p class="text-sm text-gray-500 mt-1">
+                {category.count.toLocaleString()} моделей
+              </p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+  
+  <!-- Featured Creators -->
+  <section class="bg-gray-50 py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-gray-900">
+            ⭐ Рекомендовані створювачі
+          </h2>
+          <p class="mt-4 text-lg text-gray-600">
+            Найкращі та найпопулярніші профілі цього місяця
+          </p>
+        </div>
+        <a 
+          href="/featured" 
+          class="hidden sm:block rounded-lg bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700"
+        >
+          Переглянути всі
+        </a>
+      </div>
+      
+      <div class="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {mockCreators.map((creator) => (
+          <CreatorCard creator={creator} />
+        ))}
+      </div>
+      
+      <div class="mt-8 text-center sm:hidden">
+        <a 
+          href="/featured" 
+          class="rounded-lg bg-pink-600 px-6 py-3 text-sm font-medium text-white hover:bg-pink-700"
+        >
+          Переглянути всі рекомендовані
+        </a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Free OnlyFans -->
+  <section class="py-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-gray-900">
+            💸 Безкоштовні OnlyFans
+          </h2>
+          <p class="mt-4 text-lg text-gray-600">
+            Якісний контент без підписки
+          </p>
+        </div>
+        <a 
+          href="/free-onlyfans" 
+          class="hidden sm:block rounded-lg border border-green-600 px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50"
+        >
+          Переглянути всі
+        </a>
+      </div>
+      
+      <div class="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {mockCreators.filter(creator => creator.attributes.isFree).map((creator) => (
+          <CreatorCard creator={creator} />
+        ))}
+      </div>
+    </div>
+  </section>
+  
+  <!-- Call to Action -->
+  <section class="bg-gradient-to-r from-pink-600 to-purple-600">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold tracking-tight text-white">
+          Готовий почати?
+        </h2>
+        <p class="mx-auto mt-4 max-w-2xl text-lg text-pink-100">
+          Приєднуйся до тисяч користувачів, які вже знайшли своїх улюблених створювачів на Hubite
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          <a 
+            href="/categories" 
+            class="rounded-lg bg-white px-8 py-3 text-base font-medium text-pink-600 hover:bg-gray-50"
+          >
+            Переглянути категорії
+          </a>
+          <a 
+            href="/free-onlyfans" 
+            class="rounded-lg border-2 border-white px-8 py-3 text-base font-medium text-white hover:bg-white hover:text-pink-600"
+          >
+            Безкоштовні акаунти
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

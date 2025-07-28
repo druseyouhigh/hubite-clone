@@ -1,0 +1,104 @@
+---
+import { t } from '../../lib/i18n';
+
+interface FAQ {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  title?: string;
+  faqs?: FAQ[];
+}
+
+const { 
+  title = t('freeOnlyFans.faq.title'),
+  faqs = [
+    {
+      question: t('freeOnlyFans.faq.reallyFree.question'),
+      answer: t('freeOnlyFans.faq.reallyFree.answer')
+    },
+    {
+      question: t('freeOnlyFans.faq.howOften.question'),
+      answer: t('freeOnlyFans.faq.howOften.answer')
+    },
+    {
+      question: t('freeOnlyFans.faq.canBecomePaid.question'),
+      answer: t('freeOnlyFans.faq.canBecomePaid.answer')
+    }
+  ]
+} = Astro.props;
+---
+
+<section class="bg-gray-50 py-16">
+  <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl font-bold text-gray-900 sm:text-4xl">
+        {title}
+      </h2>
+    </div>
+    
+    <div class="space-y-6">
+      {faqs.map((faq, index) => (
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+          <button 
+            class="w-full px-6 py-4 text-left focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 rounded-lg"
+            data-faq-button={index}
+            aria-expanded="false"
+          >
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">
+                {faq.question}
+              </h3>
+              <svg 
+                class="w-5 h-5 text-gray-500 transition-transform duration-200"
+                data-faq-icon={index}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          <div 
+            class="hidden px-6 pb-4"
+            data-faq-content={index}
+          >
+            <p class="text-gray-600 leading-relaxed">
+              {faq.answer}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  // FAQ accordion functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const faqButtons = document.querySelectorAll('[data-faq-button]');
+    
+    faqButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = button.getAttribute('data-faq-button');
+        const content = document.querySelector(`[data-faq-content="${index}"]`);
+        const icon = document.querySelector(`[data-faq-icon="${index}"]`);
+        const isExpanded = button.getAttribute('aria-expanded') === 'true';
+        
+        if (content && icon) {
+          if (isExpanded) {
+            content.classList.add('hidden');
+            icon.style.transform = 'rotate(0deg)';
+            button.setAttribute('aria-expanded', 'false');
+          } else {
+            content.classList.remove('hidden');
+            icon.style.transform = 'rotate(180deg)';
+            button.setAttribute('aria-expanded', 'true');
+          }
+        }
+      });
+    });
+  });
+</script> 

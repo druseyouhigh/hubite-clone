@@ -1,0 +1,93 @@
+---
+import { getAvailableLocales, currentLocale, getLocalizedUrl } from '../../lib/i18n';
+
+interface Props {
+  currentPath: string;
+  className?: string;
+  show?: boolean; // For future use when we add more languages
+}
+
+const { currentPath, className = '', show = false } = Astro.props;
+
+const availableLocales = getAvailableLocales();
+---
+
+{show && availableLocales.length > 1 && (
+  <div class={`language-switcher ${className}`}>
+    <div class="relative">
+      <button 
+        class="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-pink-600 focus:outline-none"
+        aria-label="Change language"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+        </svg>
+        <span>{availableLocales.find(l => l.code === currentLocale)?.name || 'EN'}</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      <!-- Dropdown menu (hidden by default, will be shown with JS) -->
+      <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 hidden">
+        <div class="py-1" role="menu">
+          {availableLocales.map((locale) => (
+            <a
+              href={getLocalizedUrl(currentPath, locale.code)}
+              class={`block px-4 py-2 text-sm hover:bg-gray-100 ${
+                locale.code === currentLocale 
+                  ? 'text-pink-600 bg-pink-50' 
+                  : 'text-gray-700'
+              }`}
+              role="menuitem"
+            >
+              {locale.name}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+<!-- Placeholder for future language switcher -->
+{!show && (
+  <div class="hidden">
+    <!-- Language switcher will be shown here when more languages are added -->
+    <span class="text-xs text-gray-400">EN</span>
+  </div>
+)}
+
+<style>
+  .language-switcher {
+    @apply relative;
+  }
+  
+  .language-switcher:hover .dropdown {
+    @apply block;
+  }
+</style>
+
+<script>
+  // Future: Add JavaScript for dropdown functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const languageSwitcher = document.querySelector('.language-switcher');
+    if (languageSwitcher) {
+      const button = languageSwitcher.querySelector('button');
+      const dropdown = languageSwitcher.querySelector('.hidden');
+      
+      if (button && dropdown) {
+        button.addEventListener('click', () => {
+          dropdown.classList.toggle('hidden');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!languageSwitcher.contains(e.target as Node)) {
+            dropdown.classList.add('hidden');
+          }
+        });
+      }
+    }
+  });
+</script> 

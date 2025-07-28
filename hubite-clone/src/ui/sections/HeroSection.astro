@@ -1,0 +1,73 @@
+---
+import { t, formatNumber } from '../../lib/i18n';
+
+interface Props {
+  title?: string;
+  subtitle?: string;
+  showStats?: boolean;
+  showSearch?: boolean;
+}
+
+const { 
+  title = t('home.title'),
+  subtitle = t('home.subtitle'),
+  showStats = true,
+  showSearch = true 
+} = Astro.props;
+---
+
+<section class="relative bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 py-20 sm:py-32">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="text-center">
+      <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+        {title}
+      </h1>
+      <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600">
+        {subtitle}
+      </p>
+      
+      {showSearch && (
+        <!-- Search Bar -->
+        <div class="mx-auto mt-10 max-w-xl">
+          <div class="relative">
+            <input
+              type="search"
+              placeholder={t('home.searchPlaceholder')}
+              class="w-full rounded-full border-0 bg-white py-4 pl-6 pr-16 text-gray-900 shadow-lg ring-1 ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-pink-600 sm:text-sm"
+            />
+            <button
+              type="submit"
+              class="absolute inset-y-0 right-0 flex items-center pr-3"
+            >
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {showStats && (
+        <!-- Quick Stats -->
+        <div class="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-8 sm:grid-cols-4">
+          <div class="text-center">
+            <div class="text-3xl font-bold text-pink-600">{formatNumber(12500)}+</div>
+            <div class="text-sm text-gray-600">{t('home.stats.creators')}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-purple-600">{formatNumber(3200)}+</div>
+            <div class="text-sm text-gray-600">{t('home.stats.freeProfiles')}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-indigo-600">95%</div>
+            <div class="text-sm text-gray-600">{t('home.stats.verified')}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-green-600">{t('home.stats.updates')}</div>
+            <div class="text-sm text-gray-600">Updates</div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</section> 
