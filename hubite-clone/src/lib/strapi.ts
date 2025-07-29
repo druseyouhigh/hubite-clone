@@ -3,6 +3,7 @@ import type {
   CreatorResponse,
   CategoriesResponse,
   LocationsResponse,
+  TagsResponse,
   GetCreatorsParams,
   SearchParams,
   StrapiFilters,
@@ -29,7 +30,6 @@ class StrapiClient {
     
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json',
         ...options?.headers,
       },
@@ -58,12 +58,12 @@ class StrapiClient {
   private buildFilters(params: SearchParams): StrapiFilters {
     const filters: StrapiFilters = {};
 
-    // Пошук за текстом
+    // Пошук за текстом (оновлено під реальні поля)
     if (params.query) {
       filters.$or = [
         { name: { $containsi: params.query } },
         { username: { $containsi: params.query } },
-        { displayName: { $containsi: params.query } },
+        { bio: { $containsi: params.query } },
       ];
     }
 
@@ -84,15 +84,15 @@ class StrapiClient {
       };
     }
 
-    // Фільтр за ціною
+    // Фільтр за ціною (оновлено під реальне поле price)
     if (params.priceRange) {
       if (params.priceRange.min > 0 || params.priceRange.max < 1000) {
-        filters.subscriptionPrice = {};
+        filters.price = {};
         if (params.priceRange.min > 0) {
-          filters.subscriptionPrice.$gte = params.priceRange.min;
+          filters.price.$gte = params.priceRange.min;
         }
         if (params.priceRange.max < 1000) {
-          filters.subscriptionPrice.$lte = params.priceRange.max;
+          filters.price.$lte = params.priceRange.max;
         }
       }
     }
@@ -102,45 +102,40 @@ class StrapiClient {
       filters.isFree = { $eq: params.isFree };
     }
 
-    // Фільтр за пробними версіями
-    if (params.hasTrials !== undefined) {
-      filters.hasFreeTrial = { $eq: params.hasTrials };
-    }
-
-    // Фільтр за верифікованими акаунтами
+    // Фільтр за верифікованими акаунтами (оновлено під реальне поле)
     if (params.verified !== undefined) {
-      filters.verified = { $eq: params.verified };
+      filters.isVerified = { $eq: params.verified };
     }
 
-    // Фільтр за рекомендованими
+    // Фільтр за рекомендованими (оновлено під реальне поле)
     if (params.featured !== undefined) {
-      filters.featured = { $eq: params.featured };
+      filters.isFeatured = { $eq: params.featured };
     }
 
     return filters;
   }
 
   /**
-   * Перетворює параметри сортування
+   * Перетворює параметри сортування (оновлено під реальні поля)
    */
   private buildSort(sortBy?: string): string[] {
     switch (sortBy) {
       case 'recent':
         return ['updatedAt:desc'];
       case 'popular':
-        return ['stats.subscribers:desc', 'stats.likes:desc'];
+        return ['stats.subscribers:desc', 'stats.posts:desc'];
       case 'price':
-        return ['subscriptionPrice:asc'];
+        return ['price:asc'];
       case 'name':
         return ['name:asc'];
       case 'relevance':
       default:
-        return ['featured:desc', 'verified:desc', 'updatedAt:desc'];
+        return ['isFeatured:desc', 'isVerified:desc', 'updatedAt:desc'];
     }
   }
 
   /**
-   * Отримання списку створювачів
+   * Отримання списку створювачів з правильним populate
    */
   async getCreators(params: SearchParams = {}): Promise<CreatorsResponse> {
     const searchParams = new URLSearchParams();
@@ -151,16 +146,8 @@ class StrapiClient {
       searchParams.append('filters', JSON.stringify(filters));
     }
 
-    // Популяція зв'язаних даних
-    const populate = [
-      'avatar',
-      'categories',
-      'location',
-      'tags',
-    ];
-    populate.forEach(field => {
-      searchParams.append('populate', field);
-    });
+    // Популяція зв'язаних даних (оновлено під реальну структуру)
+    searchParams.append('populate', '*');
 
     // Пагінація
     const page = params.page || 1;
@@ -174,48 +161,33 @@ class StrapiClient {
       searchParams.append('sort', sortField);
     });
 
-    // Лише опубліковані записи
-    searchParams.append('publicationState', 'live');
-
     const query = searchParams.toString();
     return this.request(`/creators${query ? `?${query}` : ''}`);
   }
 
   /**
-   * Отримання конкретного створювача за slug
+   * Отримання конкретного створювача за username
    */
-  async getCreatorBySlug(slug: string): Promise<CreatorResponse> {
+  async getCreatorByUsername(username: string): Promise<CreatorsResponse> {
     const searchParams = new URLSearchParams();
     
-    // Фільтр за slug
-    searchParams.append('filters[slug][$eq]', slug);
+    // Фільтр за username
+    searchParams.append('filters[username][$eq]', username);
     
     // Популяція всіх зв'язаних даних
-    const populate = [
-      'avatar',
-      'coverImage',
-      'gallery',
-      'categories',
-      'location',
-      'tags',
-    ];
-    populate.forEach(field => {
-      searchParams.append('populate', field);
-    });
-
-    searchParams.append('publicationState', 'live');
+    searchParams.append('populate', '*');
 
     const query = searchParams.toString();
     const response = await this.request<CreatorsResponse>(`/creators?${query}`);
     
     if (!response.data || response.data.length === 0) {
-      throw new Error(`Creator with slug "${slug}" not found`, {
-        cause: { status: 404, endpoint: '/creators', details: { slug } },
+      throw new Error(`Creator with username "${username}" not found`, {
+        cause: { status: 404, endpoint: '/creators', details: { username } },
       });
     }
 
     return {
-      data: response.data[0],
+      data: response.data, // Возвращаем массив, а не отдельный элемент
       meta: response.meta,
     };
   }
@@ -226,7 +198,6 @@ class StrapiClient {
   async getCategories(): Promise<CategoriesResponse> {
     const searchParams = new URLSearchParams();
     searchParams.append('sort', 'name:asc');
-    searchParams.append('publicationState', 'live');
     
     return this.request(`/categories?${searchParams.toString()}`);
   }
@@ -236,10 +207,19 @@ class StrapiClient {
    */
   async getLocations(): Promise<LocationsResponse> {
     const searchParams = new URLSearchParams();
-    searchParams.append('sort', 'country:asc,name:asc');
-    searchParams.append('publicationState', 'live');
+    searchParams.append('sort', 'country:asc,city:asc');
     
     return this.request(`/locations?${searchParams.toString()}`);
+  }
+
+  /**
+   * Отримання тегів
+   */
+  async getTags(): Promise<TagsResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('sort', 'name:asc');
+    
+    return this.request(`/tags?${searchParams.toString()}`);
   }
 
   /**
@@ -250,7 +230,6 @@ class StrapiClient {
     searchParams.append('populate', 'creators');
     searchParams.append('pagination[limit]', limit.toString());
     searchParams.append('sort', 'name:asc');
-    searchParams.append('publicationState', 'live');
     
     return this.request(`/categories?${searchParams.toString()}`);
   }
@@ -302,8 +281,8 @@ class StrapiClient {
    */
   async getSimilarCreators(creatorId: string, limit = 6): Promise<CreatorsResponse> {
     // Спочатку отримуємо інформацію про поточного створювача
-    const creator = await this.getCreatorBySlug(creatorId);
-    const categories = creator.data.attributes.categories?.data.map(cat => cat.attributes.slug) || [];
+    const creator = await this.getCreatorByUsername(creatorId);
+    const categories = creator.data[0]?.categories?.map(cat => cat.name) || [];
     
     // Шукаємо схожих за категоріями, виключаючи поточного
     const searchParams = new URLSearchParams();
@@ -312,14 +291,10 @@ class StrapiClient {
       searchParams.append('filters[categories][slug][$in]', categories.join(','));
     }
     
-    searchParams.append('filters[slug][$ne]', creatorId);
+    searchParams.append('filters[username][$ne]', creatorId);
     searchParams.append('pagination[limit]', limit.toString());
-    searchParams.append('sort', 'featured:desc,verified:desc');
-    
-    const populate = ['avatar', 'categories', 'location'];
-    populate.forEach(field => {
-      searchParams.append('populate', field);
-    });
+    searchParams.append('sort', 'isFeatured:desc,isVerified:desc');
+    searchParams.append('populate', '*');
 
     return this.request(`/creators?${searchParams.toString()}`);
   }

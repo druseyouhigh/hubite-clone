@@ -1,21 +1,55 @@
 ---
 import CreatorCard from './CreatorCard.astro';
 import { t } from '../../lib/i18n';
-import type { Creator } from '../../types/strapi';
+import { strapiClient } from '../../lib/strapi';
+import type { Creator, SearchParams } from '../../types/strapi';
 
 interface Props {
-  creators: Creator[];
+  creators?: Creator[];
   title?: string;
   showLoadMore?: boolean;
   className?: string;
+  searchParams?: SearchParams;
+  loadFromAPI?: boolean;
 }
 
 const { 
-  creators, 
+  creators: propCreators,
   title,
   showLoadMore = false,
-  className = ''
+  className = '',
+  searchParams = {},
+  loadFromAPI = false
 } = Astro.props;
+
+let creators: Creator[] = [];
+let error: string | null = null;
+let totalCount = 0;
+
+// Якщо потрібно завантажити з API
+if (loadFromAPI) {
+  try {
+    const response = await strapiClient.getCreators({
+      pageSize: searchParams.pageSize || 12,
+      page: searchParams.page || 1,
+      sortBy: searchParams.sortBy || 'relevance',
+      ...searchParams
+    });
+    
+    creators = response.data || [];
+    totalCount = response.meta?.pagination?.total || 0;
+  } catch (err) {
+    error = `Помилка завантаження креаторів: ${err instanceof Error ? err.message : 'Невідома помилка'}`;
+    console.error('CreatorsGrid API Error:', err);
+  }
+} else {
+  // Використовуємо передані creators
+  creators = propCreators || [];
+}
+
+const currentPage = searchParams.page || 1;
+const pageSize = searchParams.pageSize || 12;
+const hasMorePages = totalCount > (currentPage * pageSize);
 ---
 
 {title && (
@@ -23,50 +57,113 @@ const {
     <h2 class="text-3xl font-bold text-gray-900 sm:text-4xl">
       {title}
     </h2>
+    {totalCount > 0 && (
+      <p class="mt-2 text-gray-600">
+        Знайдено {totalCount} {totalCount === 1 ? 'креатор' : 'креаторів'}
+      </p>
+    )}
   </div>
 )}
 
-<div class={`grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${className}`}>
-  {creators.map((creator) => (
-    <CreatorCard creator={creator} />
-  ))}
-</div>
+{error && (
+  <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+    <div class="flex items-center">
+      <svg class="h-5 w-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p class="text-red-800">{error}</p>
+    </div>
+  </div>
+)}
 
-{showLoadMore && creators.length > 0 && (
+{!error && creators.length > 0 && (
+  <div class={`grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${className}`}>
+    {creators.map((creator) => (
+      <CreatorCard creator={creator} />
+    ))}
+  </div>
+)}
+
+{!error && showLoadMore && hasMorePages && creators.length > 0 && (
   <div class="mt-12 text-center">
     <button 
-      class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-all duration-200"
+      class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       id="load-more-btn"
+      data-current-page={currentPage}
+      data-page-size={pageSize}
+      data-search-params={JSON.stringify(searchParams)}
     >
-      {t('common.loadMore')}
-      <svg class="ml-2 -mr-1 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <span class="load-more-text">{t('common.loadMore')}</span>
+      <span class="load-more-spinner hidden">
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Завантаження...
+      </span>
+      <svg class="ml-2 -mr-1 w-5 h-5 load-more-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
       </svg>
     </button>
   </div>
 )}
 
-{creators.length === 0 && (
+{!error && creators.length === 0 && (
   <div class="text-center py-12">
     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29.82-5.877 2.172M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.25a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
-    <h3 class="mt-2 text-sm font-medium text-gray-900">No creators found</h3>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">Креаторів не знайдено</h3>
     <p class="mt-1 text-sm text-gray-500">
-      Try adjusting your search criteria or browse different categories.
+      Спробуйте змінити критерії пошуку або переглянути інші категорії.
     </p>
   </div>
 )}
 
 <script>
-  // Load more functionality (placeholder for future implementation)
+  // Load more functionality з реальним API викликом
   document.addEventListener('DOMContentLoaded', () => {
     const loadMoreBtn = document.getElementById('load-more-btn');
     
     if (loadMoreBtn) {
-      loadMoreBtn.addEventListener('click', () => {
-        // TODO: Implement load more functionality with API call
-        console.log('Load more creators...');
+      loadMoreBtn.addEventListener('click', async () => {
+        const button = loadMoreBtn as HTMLButtonElement;
+        const textSpan = button.querySelector('.load-more-text');
+        const spinnerSpan = button.querySelector('.load-more-spinner');
+        const iconSpan = button.querySelector('.load-more-icon');
+        
+        // Показуємо loading state
+        button.disabled = true;
+        textSpan?.classList.add('hidden');
+        iconSpan?.classList.add('hidden');
+        spinnerSpan?.classList.remove('hidden');
+        
+        try {
+          const currentPage = parseInt(button.dataset.currentPage || '1');
+          const pageSize = parseInt(button.dataset.pageSize || '12');
+          const searchParams = JSON.parse(button.dataset.searchParams || '{}');
+          
+          const nextPage = currentPage + 1;
+          
+          // Формуємо URL для наступної сторінки
+          const urlParams = new URLSearchParams(window.location.search);
+          urlParams.set('page', nextPage.toString());
+          
+          // Перенаправляємо на наступну сторінку
+          window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+          
+        } catch (error) {
+          console.error('Load more error:', error);
+          
+          // Повертаємо кнопку в нормальний стан при помилці
+          button.disabled = false;
+          textSpan?.classList.remove('hidden');
+          iconSpan?.classList.remove('hidden');
+          spinnerSpan?.classList.add('hidden');
+          
+          // Показуємо помилку користувачу
+          alert('Помилка завантаження. Спробуйте ще раз.');
+        }
       });
     }
   });

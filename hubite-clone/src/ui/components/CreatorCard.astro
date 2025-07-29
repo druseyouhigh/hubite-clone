@@ -1,5 +1,5 @@
 ---
-import type { Creator } from '../types/strapi';
+import type { Creator } from '../../types/strapi';
 
 interface Props {
   creator: Creator;
@@ -9,38 +9,46 @@ interface Props {
 
 const { creator, showStats = true, className = '' } = Astro.props;
 
-const attrs = creator.attributes;
-const avatarUrl = attrs.avatar?.data?.attributes.url || '/default-avatar.jpg';
-const price = attrs.subscriptionPrice || 0;
-const isFree = attrs.isFree || price === 0;
+// Реальна API структура - без attributes wrapper
+const avatarUrl = '/default-avatar.jpg'; // TODO: Додати media handling пізніше
+const price = creator.price || 0;
+const isFree = creator.isFree || price === 0;
 
 // Форматування ціни
 const formatPrice = (price: number) => {
   if (price === 0) return 'Безкоштовно';
-  return `$${price.toFixed(2)}`;
+  return `$${price}`;
 };
 
 // Отримання основної категорії
-const primaryCategory = attrs.categories?.data[0]?.attributes.name || '';
+const primaryCategory = creator.categories && creator.categories.length > 0 
+  ? creator.categories[0].name 
+  : '';
 
 // Отримання локації
-const location = attrs.location?.data?.attributes;
-const locationText = location ? `${location.city || location.name}, ${location.country}` : '';
+const location = creator.location;
+const locationText = location 
+  ? `${location.city || ''}, ${location.country || ''}`.replace(/^,\s*|,\s*$/g, '') 
+  : '';
+
+// Обробка bio (може бути rich text або string)
+const bioText = typeof creator.bio === 'string' 
+  ? creator.bio 
+  : creator.bio && Array.isArray(creator.bio) && creator.bio[0]?.children?.[0]?.text
+    ? creator.bio[0].children[0].text
+    : '';
 ---
 
 <div class={`creator-card group ${className}`}>
   <!-- Avatar та статус -->
   <div class="relative">
-    <img 
-      src={avatarUrl}
-      alt={attrs.name}
-      loading="lazy"
-      class="aspect-square w-full rounded-lg object-cover transition-transform group-hover:scale-105"
-    />
+    <div class="aspect-square w-full rounded-lg bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center text-white text-2xl font-bold transition-transform group-hover:scale-105">
+      {creator.name?.charAt(0)?.toUpperCase() || 'U'}
+    </div>
     
     <!-- Badges -->
     <div class="absolute top-2 left-2 flex flex-col gap-1">
-      {attrs.verified && (
+      {creator.isVerified && (
         <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
           <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
@@ -49,7 +57,7 @@ const locationText = location ? `${location.city || location.name}, ${location.c
         </span>
       )}
       
-      {attrs.featured && (
+      {creator.isFeatured && (
         <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
           ⭐ Рекомендовано
         </span>
@@ -66,15 +74,6 @@ const locationText = location ? `${location.city || location.name}, ${location.c
         {formatPrice(price)}
       </span>
     </div>
-    
-    <!-- Пробна версія -->
-    {attrs.hasFreeTrial && (
-      <div class="absolute bottom-2 left-2">
-        <span class="inline-flex items-center rounded-full bg-pink-100 px-2 py-1 text-xs font-medium text-pink-800">
-          🎁 Пробна версія
-        </span>
-      </div>
-    )}
   </div>
   
   <!-- Інформація про створювача -->
@@ -82,9 +81,9 @@ const locationText = location ? `${location.city || location.name}, ${location.c
     <!-- Ім'я та username -->
     <div>
       <h3 class="font-semibold text-gray-900 group-hover:text-pink-600 transition-colors">
-        {attrs.displayName || attrs.name}
+        {creator.name || 'Unknown Creator'}
       </h3>
-      <p class="text-sm text-gray-500">@{attrs.username}</p>
+      <p class="text-sm text-gray-500">@{creator.username || 'unknown'}</p>
     </div>
     
     <!-- Категорія та локація -->
@@ -99,71 +98,93 @@ const locationText = location ? `${location.city || location.name}, ${location.c
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
+            {location?.flag && <span class="mr-1">{location.flag}</span>}
             {locationText}
           </span>
         )}
       </div>
     )}
     
-    <!-- Статистика -->
-    {showStats && (
+    <!-- Статистика (якщо доступна) -->
+    {showStats && creator.stats && (
       <div class="flex items-center justify-between text-xs text-gray-500">
         <div class="flex space-x-3">
-          <span class="flex items-center">
-            <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            {attrs.stats.posts}
-          </span>
+          {creator.stats.posts !== undefined && (
+            <span class="flex items-center">
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {creator.stats.posts}
+            </span>
+          )}
           
-          <span class="flex items-center">
-            <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            {attrs.stats.photos}
-          </span>
+          {creator.stats.photos !== undefined && (
+            <span class="flex items-center">
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {creator.stats.photos}
+            </span>
+          )}
           
-          <span class="flex items-center">
-            <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            {attrs.stats.videos}
-          </span>
+          {creator.stats.videos !== undefined && (
+            <span class="flex items-center">
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {creator.stats.videos}
+            </span>
+          )}
+          
+          {creator.stats.subscribers !== undefined && (
+            <span class="flex items-center">
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {creator.stats.subscribers?.toLocaleString()}
+            </span>
+          )}
         </div>
-        
-        {attrs.lastActiveAt && (
-          <span class="text-gray-400">
-            {new Date(attrs.lastActiveAt).toLocaleDateString('uk-UA')}
-          </span>
-        )}
       </div>
     )}
     
     <!-- Опис (короткий) -->
-    {attrs.bio && (
+    {bioText && (
       <p class="text-xs text-gray-600 line-clamp-2">
-        {attrs.bio}
+        {bioText}
       </p>
+    )}
+    
+    <!-- Tag (якщо є) -->
+    {creator.tag && (
+      <div class="flex flex-wrap gap-1">
+        <span 
+          class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
+          style={`background-color: ${creator.tag.color || '#gray'}`}
+        >
+          {creator.tag.name}
+        </span>
+      </div>
     )}
   </div>
   
   <!-- Дії -->
   <div class="mt-4 flex space-x-2">
     <a 
-      href={`/creator/${attrs.slug}`}
+      href={`/creator/${creator.username}`}
       class="flex-1 rounded-lg bg-pink-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-pink-700 transition-colors"
     >
       Переглянути профіль
     </a>
     
-    {attrs.trialLink && (
+    {creator.socialLinks?.onlyfans && (
       <a 
-        href={attrs.trialLink}
+        href={creator.socialLinks.onlyfans}
         target="_blank"
         rel="noopener noreferrer"
         class="rounded-lg border border-pink-600 px-3 py-2 text-sm font-medium text-pink-600 hover:bg-pink-50 transition-colors"
       >
-        Пробна версія
+        OnlyFans
       </a>
     )}
   </div>

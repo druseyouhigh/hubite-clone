@@ -1,0 +1,245 @@
+---
+// Static generation for API test page
+export const prerender = true;
+
+import BaseLayout from '../ui/layouts/BaseLayout.astro';
+import { strapiClient } from '../lib/strapi';
+
+// Initialize variables as empty arrays
+let creators = [];
+let categories = [];
+let locations = [];
+let tags = [];
+let error = null;
+
+try {
+  console.log('🧪 Тестування API endpoints...');
+  
+  // Get data from all endpoints
+  const [creatorsData, categoriesData, locationsData, tagsData] = await Promise.all([
+    strapiClient.getCreators({ pageSize: 10 }),
+    strapiClient.getCategories(),
+    strapiClient.getLocations(),
+    strapiClient.getTags()
+  ]);
+
+  creators = creatorsData.data || [];
+  categories = categoriesData.data || [];
+  locations = locationsData.data || [];
+  tags = tagsData.data || [];
+
+  console.log('✅ API тестування успішне:', {
+    creators: creators.length,
+    categories: categories.length,
+    locations: locations.length,
+    tags: tags.length
+  });
+
+  // Log data structure
+  console.log('📋 Categories structure:', categories);
+  console.log('🌍 Locations structure:', locations);
+  console.log('🏷️ Tags structure:', tags);
+
+  // Log first elements for structure check
+  if (categories.length > 0) {
+    console.log('📋 First category:', categories[0]);
+  }
+  if (locations.length > 0) {
+    console.log('🌍 First location:', locations[0]);
+  }
+  if (tags.length > 0) {
+    console.log('🏷️ First tag:', tags[0]);
+  }
+
+} catch (err) {
+  error = err;
+  console.error('❌ Помилка при тестуванні API:', err);
+}
+---
+
+<BaseLayout title="API Test">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">🧪 API Integration Test</h1>
+
+    {error && (
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+        <strong>Помилка:</strong> {String(error)}
+      </div>
+    )}
+
+    {!error && (
+      <div>
+        <!-- API Status Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-blue-600">{creators?.length || 0}</div>
+              <div class="text-blue-700">Creators</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-green-600">{categories?.length || 0}</div>
+              <div class="text-green-700">Categories</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-purple-600">{locations?.length || 0}</div>
+              <div class="text-purple-700">Locations</div>
+            </div>
+          </div>
+          <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-orange-600">{tags?.length || 0}</div>
+              <div class="text-orange-700">Tags</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Categories -->
+        {categories && categories.length > 0 && (
+          <div>
+            <h2 class="text-2xl font-semibold mb-4">📂 Categories</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {categories.slice(0, 8).map((category, index) => {
+                console.log(`Category ${index}:`, category);
+                return (
+                  <div class="bg-white rounded-lg shadow p-4 text-center">
+                    {category?.icon && (
+                      <span class="text-2xl">{category.icon}</span>
+                    )}
+                    <h3 class="font-medium">{category?.name || 'Unknown Category'}</h3>
+                    <p class="text-xs text-gray-500">{category?.slug || 'unknown-slug'}</p>
+                    {category?.isPopular && (
+                      <span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mt-2">
+                        Popular
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <!-- Locations -->
+        {locations && locations.length > 0 && (
+          <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-4">🌍 Locations</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {locations.slice(0, 8).map((location, index) => {
+                console.log(`Location ${index}:`, location);
+                return (
+                  <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <span class="text-2xl">{location?.flag || '🏳️'}</span>
+                    <h3 class="font-medium">{location?.city || 'Unknown City'}</h3>
+                    <p class="text-sm text-gray-600">{location?.country || 'Unknown Country'}</p>
+                    <p class="text-xs text-gray-500">{location?.region || 'Unknown Region'}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <!-- Tags -->
+        {tags && tags.length > 0 && (
+          <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-4">🏷️ Tags</h2>
+            <div class="flex flex-wrap gap-2">
+              {tags.slice(0, 10).map((tag, index) => {
+                console.log(`Tag ${index}:`, tag);
+                return (
+                  <span 
+                    class="px-3 py-1 rounded-full text-white text-sm font-medium"
+                    style={`background-color: ${tag?.color || '#gray'}`}
+                  >
+                    {tag?.name || 'Unknown Tag'}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <!-- Creators -->
+        {creators && creators.length > 0 && (
+          <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-4">👥 Creators</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {creators.slice(0, 6).map((creator, index) => {
+                console.log(`Creator ${index}:`, creator);
+                return (
+                  <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center space-x-4 mb-4">
+                      <div class="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                        <span class="text-gray-600 font-bold">
+                          {creator?.name?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 class="font-semibold">{creator?.name || 'Unknown Creator'}</h3>
+                        <p class="text-gray-600 text-sm">@{creator?.username || 'unknown'}</p>
+                      </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                      <div>
+                        <span class="font-medium">Price:</span> 
+                        ${creator?.price || 0}/month
+                      </div>
+                      
+                      {creator?.location && (
+                        <div>
+                          <span class="font-medium">Location:</span> 
+                          {creator.location.city}, {creator.location.country}
+                        </div>
+                      )}
+                      
+                      {creator?.categories && creator.categories.length > 0 && (
+                        <div>
+                          <span class="font-medium">Categories:</span> 
+                          {creator.categories.map(cat => cat.name).join(', ')}
+                        </div>
+                      )}
+                      
+                      {creator?.bio && (
+                        <div>
+                          <span class="font-medium">Bio:</span> 
+                          <p class="text-gray-600 mt-1">
+                            {typeof creator.bio === 'string' ? creator.bio : 'Bio available'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-4">
+                      <div class="flex space-x-2">
+                        {creator?.isVerified && (
+                          <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                            ✓ Verified
+                          </span>
+                        )}
+                        {creator?.isFeatured && (
+                          <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                            ⭐ Featured
+                          </span>
+                        )}
+                        {creator?.isFree && (
+                          <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                            Free
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</BaseLayout>

@@ -1,0 +1,367 @@
+---
+// Dynamic server-side rendering - content loaded from CMS
+import BaseLayout from '../../ui/layouts/BaseLayout.astro';
+import { strapiClient } from '../../lib/strapi';
+import type { Creator } from '../../types/strapi';
+
+// Get username from URL parameters
+const { username } = Astro.params;
+
+if (!username) {
+  return Astro.redirect('/');
+}
+
+// Dynamically load creator data from CMS
+let creator: Creator | null = null;
+let error: string | null = null;
+
+try {
+  console.log(`Loading creator data for: ${username}`);
+  const response = await strapiClient.getCreatorByUsername(username);
+  
+  console.log(`API Response:`, JSON.stringify(response, null, 2));
+  
+  if (response.data && response.data.length > 0) {
+    creator = response.data[0];
+    console.log(`Creator loaded from CMS: ${creator.name} (username: ${creator.username})`);
+  } else {
+    console.log(`Creator not found in CMS: ${username}`);
+    console.log(`Response data:`, response.data);
+    // Return 404 if creator not found in CMS
+    return new Response(null, {
+      status: 404,
+      statusText: 'Creator not found'
+    });
+  }
+} catch (err) {
+  console.error(`Error loading creator from CMS:`, err);
+  console.error(`Error details:`, err.message);
+  error = `CMS loading error: ${err instanceof Error ? err.message : 'Unknown error'}`;
+  
+  // Return 500 on CMS error
+  return new Response(null, {
+    status: 500,
+    statusText: 'Server error'
+  });
+}
+
+// SEO meta data based on CMS data
+const pageTitle = `${creator.name} (@${creator.username}) - Hubite Clone`;
+const pageDescription = typeof creator.bio === 'string' 
+  ? creator.bio.slice(0, 160) 
+  : `Profile ${creator.name} on Hubite Clone. ${creator.isVerified ? 'Verified' : ''} ${creator.isFree ? 'free' : `$${creator.price}/month`} creator.`;
+
+// Process bio from CMS
+const bioText = typeof creator.bio === 'string' 
+  ? creator.bio 
+  : creator.bio && Array.isArray(creator.bio) && creator.bio[0]?.children?.[0]?.text
+    ? creator.bio[0].children[0].text
+    : '';
+
+// Format price
+const formatPrice = (price: number) => {
+  if (price === 0) return 'Free';
+  return `$${price}/month`;
+};
+
+// Format date
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('uk-UA', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Breadcrumbs -->
+      <div class="mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div class="flex items-center space-x-2 text-sm text-gray-500">
+            <a href="/" class="hover:text-pink-600 transition-colors">Home</a>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <a href="/" class="hover:text-pink-600 transition-colors">Creators</a>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <span class="text-gray-900">{creator.name}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Creator Header -->
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div class="flex flex-col sm:flex-row gap-6">
+              
+              <!-- Avatar -->
+              <div class="flex-shrink-0">
+                <div class="w-32 h-32 rounded-full bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center text-white text-4xl font-bold">
+                  {creator.name.charAt(0)}
+                </div>
+              </div>
+
+              <!-- Creator Info -->
+              <div class="flex-1">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div>
+                    <h1 class="text-4xl font-bold text-gray-900 mb-2">{creator.name}</h1>
+                    <p class="text-xl text-gray-600 mb-3">@{creator.username}</p>
+                    
+                    <!-- Location -->
+                    {creator.location && (
+                      <div class="flex items-center text-gray-600 mb-3">
+                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>{creator.location.flag} {creator.location.city}, {creator.location.country}</span>
+                      </div>
+                    )}
+                    
+                    <!-- Categories -->
+                    {creator.categories && creator.categories.length > 0 && (
+                      <div class="flex flex-wrap gap-2 mb-4">
+                        {creator.categories.map((category) => (
+                          <span 
+                            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white"
+                            style={`background-color: ${category.color || '#6B7280'}`}
+                          >
+                            {category.icon} {category.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <!-- Badges -->
+                    <div class="flex flex-wrap gap-2">
+                      {creator.isVerified && (
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                          </svg>
+                          Verified
+                        </span>
+                      )}
+                      
+                      {creator.isFeatured && (
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          ⭐ Featured
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bio -->
+          {bioText && (
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 class="text-lg font-semibold text-gray-900 mb-4">About the Creator</h2>
+              <p class="text-gray-700 leading-relaxed whitespace-pre-line">
+                {bioText}
+              </p>
+            </div>
+          )}
+
+          <!-- Stats -->
+          {creator.stats && (
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 class="text-lg font-semibold text-gray-900 mb-4">Statistics</h2>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {creator.stats.posts !== undefined && (
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{creator.stats.posts}</div>
+                    <div class="text-sm text-gray-500">Posts</div>
+                  </div>
+                )}
+                {creator.stats.photos !== undefined && (
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{creator.stats.photos}</div>
+                    <div class="text-sm text-gray-500">Photos</div>
+                  </div>
+                )}
+                {creator.stats.videos !== undefined && (
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{creator.stats.videos}</div>
+                    <div class="text-sm text-gray-500">Videos</div>
+                  </div>
+                )}
+                {creator.stats.subscribers !== undefined && (
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900">{creator.stats.subscribers.toLocaleString()}</div>
+                    <div class="text-sm text-gray-500">Subscribers</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <!-- Social Links -->
+          {creator.socialLinks && (
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 class="text-lg font-semibold text-gray-900 mb-4">Social Links</h2>
+              <div class="flex flex-wrap gap-3">
+                {creator.socialLinks.onlyfans && (
+                  <a href={creator.socialLinks.onlyfans} target="_blank" rel="noopener noreferrer" 
+                     class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    🔗 OnlyFans
+                  </a>
+                )}
+                {creator.socialLinks.instagram && (
+                  <a href={creator.socialLinks.instagram} target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                    📷 Instagram
+                  </a>
+                )}
+                {creator.socialLinks.twitter && (
+                  <a href={creator.socialLinks.twitter} target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors">
+                    🐦 Twitter
+                  </a>
+                )}
+                {creator.socialLinks.tiktok && (
+                  <a href={creator.socialLinks.tiktok} target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
+                    🎵 TikTok
+                  </a>
+                )}
+                {creator.socialLinks.telegram && (
+                  <a href={creator.socialLinks.telegram} target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    ✈️ Telegram
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          
+          <!-- Subscription Card -->
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-6">
+            <div class="text-center mb-6">
+              <div class="text-4xl font-bold text-pink-600 mb-2">
+                {formatPrice(creator.price)}
+              </div>
+              {!creator.isFree && (
+                <p class="text-sm text-gray-500">Monthly Subscription</p>
+              )}
+            </div>
+
+            <div class="space-y-3">
+              {creator.socialLinks?.onlyfans ? (
+                <a 
+                  href={creator.socialLinks.onlyfans}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="w-full bg-pink-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-pink-700 transition-colors text-center block"
+                >
+                  {creator.isFree ? 'View for Free' : 'Subscribe to OnlyFans'}
+                </a>
+              ) : (
+                <button 
+                  disabled
+                  class="w-full bg-gray-300 text-gray-500 py-3 px-4 rounded-lg font-medium cursor-not-allowed text-center"
+                >
+                  Link unavailable
+                </button>
+              )}
+              
+              <!-- Share Button -->
+              <button 
+                onclick="navigator.share ? navigator.share({title: document.title, url: window.location.href}) : navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied!'))"
+                class="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                📤 Share
+              </button>
+            </div>
+
+            <!-- Features -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+              <ul class="space-y-2 text-sm">
+                {creator.isVerified && (
+                  <li class="flex items-center text-green-600">
+                    <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Verified profile
+                  </li>
+                )}
+                {creator.stats?.posts && (
+                  <li class="flex items-center text-green-600">
+                    <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    {creator.stats.posts}+ posts
+                  </li>
+                )}
+                <li class="flex items-center text-green-600">
+                  <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  Regular updates
+                </li>
+                
+                <li class="flex items-center text-green-600">
+                  <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  Exclusive content
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Tag -->
+          {creator.tag && (
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-3">Category</h3>
+              <span 
+                class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium text-white"
+                style={`background-color: ${creator.tag.color || '#6B7280'}`}
+              >
+                {creator.tag.name}
+              </span>
+            </div>
+          )}
+
+          <!-- Meta Info -->
+          <div class="bg-gray-50 rounded-lg p-4 text-xs text-gray-500">
+            <div class="space-y-1">
+              <div>Profile created: {formatDate(creator.createdAt)}</div>
+              <div>Last updated: {formatDate(creator.updatedAt)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Back Button -->
+      <div class="mt-8">
+        <a 
+          href="/"
+          class="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to search
+        </a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

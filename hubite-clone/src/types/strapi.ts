@@ -48,131 +48,98 @@ export interface StrapiMediaFormat {
   hash: string;
   ext: string;
   mime: string;
-  width: number;
-  height: number;
   size: number;
   url: string;
+  width: number;
+  height: number;
 }
 
-// Статистика створювача
-export interface CreatorStats {
-  posts: number;
-  photos: number;
-  videos: number;
-  likes?: number;
-  subscribers?: number;
-}
-
-// Локація
-export interface LocationAttributes {
-  name: string;
-  country: string;
-  countryCode: string;
-  city?: string;
-  region?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type Location = StrapiEntity<LocationAttributes>;
-
-// Категорія
-export interface CategoryAttributes {
-  name: string;
-  slug: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  isAdult: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type Category = StrapiEntity<CategoryAttributes>;
-
-// Тег
-export interface TagAttributes {
-  name: string;
-  slug: string;
-  description?: string;
-  color?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type Tag = StrapiEntity<TagAttributes>;
-
-// Соціальні мережі
-export interface SocialLinks {
+// Компоненти (реальна структура з API)
+export interface SocialLinksComponent {
+  id: number;
+  onlyfans?: string;
   instagram?: string;
   twitter?: string;
   tiktok?: string;
-  onlyfans?: string;
-  website?: string;
+  telegram?: string;
 }
 
-// Основна модель створювача
-export interface CreatorAttributes {
+export interface StatsComponent {
+  id: number;
+  posts: number;
+  photos: number;
+  videos: number;
+  subscribers: number;
+}
+
+// Локація (реальна плоска структура з API)
+export interface Location {
+  id: number;
+  documentId: string;
+  country: string;
+  countryCode: string;
+  city: string;
+  region: string;
+  flag: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+}
+
+// Категорія (реальна плоска структура з API)
+export interface Category {
+  id: number;
+  documentId: string;
+  name: string;
+  slug: string;
+  description: string;
+  icon?: string;
+  color?: string;
+  isPopular?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+}
+
+// Тег (реальна плоска структура з API)
+export interface Tag {
+  id: number;
+  documentId: string;
+  name: string;
+  slug: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+}
+
+// Основна модель створювача (реальна плоска структура з API)
+export interface Creator {
+  id: number;
+  documentId: string;
   name: string;
   username: string;
-  displayName?: string;
-  bio?: string;
-  description?: string;
-  
-  // Медіа
-  avatar?: {
-    data: StrapiMedia | null;
-  };
-  coverImage?: {
-    data: StrapiMedia | null;
-  };
-  gallery?: {
-    data: StrapiMedia[];
-  };
-  
-  // Ціноутворення
-  subscriptionPrice?: number;
+  email: string;
+  bio?: any; // Може бути string або rich text array
+  price: number;
   isFree: boolean;
-  hasFreeTrial: boolean;
-  trialLink?: string;
-  discountPrice?: number;
+  isVerified: boolean;
+  isFeatured: boolean;
   
-  // Статистика
-  stats: CreatorStats;
+  // Компоненти (опціональні)
+  socialLinks?: SocialLinksComponent;
+  stats?: StatsComponent;
   
-  // Зв'язки
-  categories?: {
-    data: Category[];
-  };
-  tags?: {
-    data: Tag[];
-  };
-  location?: {
-    data: Location | null;
-  };
-  
-  // Соціальні мережі
-  socialLinks?: SocialLinks;
-  
-  // Мета-дані
-  verified: boolean;
-  featured: boolean;
-  isActive: boolean;
-  lastActiveAt?: string;
-  joinedAt?: string;
-  
-  // SEO
-  slug: string;
-  metaTitle?: string;
-  metaDescription?: string;
+  // Зв'язки (populate результати - плоскі об'єкти)
+  categories?: Category[];
+  location?: Location | null;
+  tag?: Tag | null;
   
   // Системні поля
   createdAt: string;
   updatedAt: string;
-  publishedAt?: string;
+  publishedAt: string;
 }
-
-export type Creator = StrapiEntity<CreatorAttributes>;
 
 // Параметри пошуку
 export interface SearchParams {
@@ -206,34 +173,14 @@ export interface GetCreatorsParams {
 
 // Відповіді API
 export type CreatorsResponse = StrapiResponse<Creator[]>;
-export type CreatorResponse = StrapiResponse<Creator>;
+export type CreatorResponse = StrapiResponse<Creator[]>;
 export type CategoriesResponse = StrapiResponse<Category[]>;
 export type LocationsResponse = StrapiResponse<Location[]>;
 export type TagsResponse = StrapiResponse<Tag[]>;
 
-// Фільтри для Strapi
+// Фільтри для Strapi API
 export interface StrapiFilters {
   [key: string]: any;
-  $and?: StrapiFilters[];
-  $or?: StrapiFilters[];
-  $not?: StrapiFilters;
-  $eq?: any;
-  $ne?: any;
-  $in?: any[];
-  $notIn?: any[];
-  $lt?: number;
-  $lte?: number;
-  $gt?: number;
-  $gte?: number;
-  $between?: [number, number];
-  $contains?: string;
-  $notContains?: string;
-  $containsi?: string;
-  $notContainsi?: string;
-  $startsWith?: string;
-  $endsWith?: string;
-  $null?: boolean;
-  $notNull?: boolean;
 }
 
 // Помилки API
@@ -244,7 +191,54 @@ export interface APIError {
   details?: any;
 }
 
-export interface StrapiError {
-  data: null;
-  error: APIError;
+// Deprecated types для зворотної сумісності
+export interface LocationAttributes {
+  country: string;
+  countryCode: string;
+  city: string;
+  region: string;
+  flag: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+}
+
+export interface CategoryAttributes {
+  name: string;
+  slug: string;
+  description: string;
+  icon?: string;
+  color?: string;
+  isPopular?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+}
+
+export interface TagAttributes {
+  name: string;
+  slug: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+}
+
+export interface CreatorAttributes {
+  name: string;
+  username: string;
+  email: string;
+  bio?: any;
+  price: number;
+  isFree: boolean;
+  isVerified: boolean;
+  isFeatured: boolean;
+  socialLinks?: SocialLinksComponent;
+  stats?: StatsComponent;
+  categories?: Category[];
+  location?: Location | null;
+  tag?: Tag | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
 } 
