@@ -1,0 +1,461 @@
+---
+// Server-side rendering for dynamic category pages (supports both slug and ID)
+export const prerender = false;
+
+import BaseLayout from '../../ui/layouts/BaseLayout.astro';
+import CreatorsGrid from '../../ui/components/CreatorsGrid.astro';
+import CategorySEO from '../../ui/components/CategorySEO.astro';
+import { strapiClient } from '../../lib/strapi';
+import type { Category, Creator, SearchParams } from '../../types/strapi';
+
+// Отримуємо slug або ID категорії з URL
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/categories');
+}
+
+// Спочатку спробуємо як slug, потім як ID
+let isNumericId = false;
+let category: Category | null = null;
+let creators: Creator[] = [];
+let totalCreators = 0;
+let error: string | null = null;
+
+console.log(`🔍 Category parameter: ${slug}`);
+
+// Отримуємо параметри пошуку та фільтрації з URL
+const url = new URL(Astro.request.url);
+const searchParams: SearchParams = {
+  query: url.searchParams.get('search') || undefined,
+  sortBy: (url.searchParams.get('sort') as any) || 'relevance',
+  page: parseInt(url.searchParams.get('page') || '1'),
+  pageSize: 24,
+  isFree: url.searchParams.get('free') === 'true' ? true : undefined,
+  verified: url.searchParams.get('verified') === 'true' ? true : undefined,
+  featured: url.searchParams.get('featured') === 'true' ? true : undefined,
+  location: url.searchParams.get('location') || undefined,
+  priceRange: url.searchParams.get('priceMin') || url.searchParams.get('priceMax') ? {
+    min: parseInt(url.searchParams.get('priceMin') || '0'),
+    max: parseInt(url.searchParams.get('priceMax') || '1000')
+  } : undefined,
+};
+
+// Спробуємо завантажити категорію спочатку як slug, потім як ID
+try {
+  console.log(`🔍 Trying to load category as slug: ${slug}`);
+  
+  // Спочатку спробуємо як slug
+  let categoryResponse = await strapiClient.getCategoryBySlug(slug);
+  
+  if (!categoryResponse.data || categoryResponse.data.length === 0) {
+    // Якщо не знайдено як slug і параметр числовий, спробуємо як ID
+    if (!isNaN(Number(slug))) {
+      console.log(`🔍 Slug not found, trying as ID: ${slug}`);
+      isNumericId = true;
+      categoryResponse = await strapiClient.getCategoryById(slug);
+    }
+  }
+  
+  category = categoryResponse.data[0] || null;
+  
+  if (category) {
+    // Завантажуємо креаторів для знайденої категорії
+    // Використовуємо ID категорії для пошуку креаторів, оскільки це надійніше
+    const creatorsResponse = await strapiClient.getCreatorsByCategoryId(category.id, searchParams);
+    
+    creators = creatorsResponse.data || [];
+    totalCreators = creatorsResponse.meta?.pagination?.total || creators.length;
+    
+    console.log(`✅ Category found: ${category.name} (ID: ${category.id}, slug: ${category.slug}), ${creators.length}/${totalCreators} creators`);
+  }
+  
+} catch (err) {
+  console.error('❌ Category Page API Error:', err);
+  error = `Помилка завантаження даних: ${err instanceof Error ? err.message : 'Невідома помилка'}`;
+}
+
+// Якщо категорія не знайдена, але немає помилки - встановлюємо помилку
+if (!category && !error) {
+  error = `Категорія з ${isNumericId ? 'ID' : 'slug'} "${slug}" не знайдена. Перевірте правильність ${isNumericId ? 'номера' : 'назви'} категорії.`;
+}
+
+// SEO та мета дані
+const pageTitle = category 
+  ? `${category.name} - Категорія креаторів | Hubite Clone`
+  : 'Категорія не знайдена';
+
+const pageDescription = category 
+  ? `Відкрийте ${totalCreators} креаторів в категорії ${category.name}. ${category.description || 'Ексклюзивний контент, верифіковані профілі.'}`
+  : 'Категорія не знайдена';
+
+// Пагінація
+const currentPage = searchParams.page || 1;
+const hasMorePages = totalCreators > (currentPage * (searchParams.pageSize || 24));
+const hasPrevPage = currentPage > 1;
+
+// Функція для створення URL з параметрами
+const createFilterUrl = (newParams: Record<string, string | undefined>) => {
+  const params = new URLSearchParams();
+  
+  // Зберігаємо існуючі параметри
+  if (searchParams.query) params.set('search', searchParams.query);
+  if (searchParams.sortBy && searchParams.sortBy !== 'relevance') params.set('sort', searchParams.sortBy);
+  if (searchParams.isFree) params.set('free', 'true');
+  if (searchParams.verified) params.set('verified', 'true');
+  if (searchParams.featured) params.set('featured', 'true');
+  if (searchParams.location) params.set('location', searchParams.location);
+  if (searchParams.priceRange?.min) params.set('priceMin', searchParams.priceRange.min.toString());
+  if (searchParams.priceRange?.max && searchParams.priceRange.max < 1000) params.set('priceMax', searchParams.priceRange.max.toString());
+  
+  // Додаємо нові параметри
+  Object.entries(newParams).forEach(([key, value]) => {
+    if (value !== undefined) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+  });
+  
+  return `/categories/${slug}${params.toString() ? `?${params.toString()}` : ''}`;
+};
+
+// Додаткова інформація для логування
+console.log(`🔍 Processing category: ${slug} (type: ${isNumericId ? 'ID' : 'slug'})`);
+---
+
+<BaseLayout 
+  title={pageTitle}
+  description={pageDescription}
+>
+  <!-- SEO Enhancement for Category Page -->
+  <CategorySEO 
+    category={category || undefined}
+    creatorsCount={totalCreators}
+    slot="head"
+  />
+  {category && (
+    <>
+      <!-- Breadcrumbs -->
+      <nav class="bg-gray-50 border-b border-gray-200" aria-label="Breadcrumb">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center space-x-4 py-4">
+            <ol class="flex items-center space-x-4">
+              <li>
+                <div>
+                  <a href="/" class="text-gray-400 hover:text-gray-500">
+                    <svg class="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    </svg>
+                    <span class="sr-only">Головна</span>
+                  </a>
+                </div>
+              </li>
+              <li>
+                <div class="flex items-center">
+                  <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  <a href="/categories" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">
+                    Категорії
+                  </a>
+                </div>
+              </li>
+              <li>
+                <div class="flex items-center">
+                  <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  <span class="ml-4 text-sm font-medium text-gray-500" aria-current="page">
+                    {category.name}
+                  </span>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Hero секція категорії -->
+      <section class="bg-gradient-to-r from-pink-600 to-purple-600 py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="text-center">
+            <div class="text-6xl mb-4">
+              {category.icon || '📂'}
+            </div>
+            <h1 class="text-4xl font-bold text-white sm:text-5xl lg:text-6xl">
+              {category.name}
+            </h1>
+            {category.description && (
+              <p class="mt-4 text-xl text-pink-100 max-w-3xl mx-auto">
+                {category.description}
+              </p>
+            )}
+            
+            <!-- Статистика категорії -->
+            <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-lg mx-auto">
+              <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                <div class="text-2xl font-bold text-white">{totalCreators}</div>
+                <div class="text-sm text-pink-100">Креаторів</div>
+              </div>
+              <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                <div class="text-2xl font-bold text-white">{creators.filter(c => c.isFree).length}</div>
+                <div class="text-sm text-pink-100">Безкоштовних</div>
+              </div>
+              <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                <div class="text-2xl font-bold text-white">{creators.filter(c => c.isVerified).length}</div>
+                <div class="text-sm text-pink-100">Верифікованих</div>
+              </div>
+            </div>
+            
+            {category.isPopular && (
+              <div class="mt-6">
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  Популярна категорія
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <!-- Фільтри та пошук -->
+      <section class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <form method="GET" class="space-y-4 lg:space-y-0 lg:flex lg:items-center lg:space-x-4">
+            
+            <!-- Пошук -->
+            <div class="flex-1">
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  name="search"
+                  value={searchParams.query || ''}
+                  placeholder={`Пошук в категорії ${category.name}...`}
+                  class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-sm"
+                />
+              </div>
+            </div>
+            
+            <!-- Сортування -->
+            <div class="lg:w-48">
+              <select 
+                name="sort" 
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-sm"
+              >
+                <option value="relevance" selected={searchParams.sortBy === 'relevance'}>За релевантністю</option>
+                <option value="recent" selected={searchParams.sortBy === 'recent'}>Нещодавно оновлені</option>
+                <option value="popular" selected={searchParams.sortBy === 'popular'}>Популярні</option>
+                <option value="price" selected={searchParams.sortBy === 'price'}>За ціною</option>
+                <option value="name" selected={searchParams.sortBy === 'name'}>За ім'ям</option>
+              </select>
+            </div>
+            
+            <!-- Кнопка пошуку -->
+            <div class="lg:w-auto">
+              <button
+                type="submit"
+                class="w-full lg:w-auto px-6 py-2 bg-pink-600 text-white font-medium rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-colors text-sm"
+              >
+                Знайти
+              </button>
+            </div>
+          </form>
+          
+          <!-- Швидкі фільтри -->
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="text-sm text-gray-500">Швидкі фільтри:</span>
+            
+            <a 
+              href={createFilterUrl({ free: searchParams.isFree ? undefined : 'true' })}
+              class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                searchParams.isFree 
+                  ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              💸 Безкоштовні
+            </a>
+            
+            <a 
+              href={createFilterUrl({ verified: searchParams.verified ? undefined : 'true' })}
+              class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                searchParams.verified 
+                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ✓ Верифіковані
+            </a>
+            
+            <a 
+              href={createFilterUrl({ featured: searchParams.featured ? undefined : 'true' })}
+              class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                searchParams.featured 
+                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ⭐ Рекомендовані
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Основний контент -->
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        
+        <!-- Заголовок результатів -->
+        <div class="mb-8 flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">
+              {searchParams.query 
+                ? `Результати пошуку в категорії ${category.name}`
+                : `Креатори в категорії ${category.name}`
+              }
+            </h2>
+            <p class="text-gray-600 mt-1">
+              {totalCreators > 0 
+                ? `Показано ${creators.length} з ${totalCreators} ${totalCreators === 1 ? 'креатора' : 'креаторів'}`
+                : 'Креаторів не знайдено'
+              }
+            </p>
+          </div>
+          
+          <!-- Пагінація (верхня) -->
+          {(hasPrevPage || hasMorePages) && (
+            <div class="flex items-center space-x-2">
+              {hasPrevPage && (
+                <a 
+                  href={createFilterUrl({ page: (currentPage - 1).toString() })}
+                  class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  ← Попередня
+                </a>
+              )}
+              <span class="px-3 py-2 text-sm text-gray-700">
+                Сторінка {currentPage}
+              </span>
+              {hasMorePages && (
+                <a 
+                  href={createFilterUrl({ page: (currentPage + 1).toString() })}
+                  class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Наступна →
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+        
+        <!-- Сітка креаторів або повідомлення про помилку -->
+        {error ? (
+          <!-- Помилка завантаження -->
+          <div class="text-center py-12">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
+              <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="text-lg font-medium text-red-800 mb-2">Помилка завантаження</h3>
+              <p class="text-red-600 mb-4">{error}</p>
+              
+              {error.includes('не знайдена') && (
+                <div class="text-left mb-4">
+                  <p class="text-sm text-red-700 mb-2">💡 Корисні посилання:</p>
+                  <div class="space-y-1 text-xs">
+                    <div><a href="/categories" class="text-blue-600 hover:underline">📋 Переглянути всі категорії</a></div>
+                    <div><a href="/categories/2" class="text-blue-600 hover:underline">🔗 Спробувати категорію ID: 2</a></div>
+                    <div><a href="http://localhost:1337/api/categories?populate=*" target="_blank" class="text-blue-600 hover:underline">🔍 Переглянути API категорій</a></div>
+                    <div class="text-gray-600 text-xs mt-2">💡 Перевірте консоль браузера для деталей помилки</div>
+                  </div>
+                </div>
+              )}
+              
+              <div class="flex space-x-3 justify-center">
+                <a 
+                  href="/categories"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Всі категорії
+                </a>
+                <button 
+                  onclick="window.location.reload()" 
+                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Спробувати ще раз
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : creators.length > 0 ? (
+          <!-- Сітка креаторів -->
+          <CreatorsGrid 
+            creators={creators}
+            searchParams={searchParams}
+          />
+        ) : (
+          <!-- Пустий стан -->
+          <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h3 class="mt-2 text-lg font-medium text-gray-900">Креаторів не знайдено</h3>
+            <p class="mt-1 text-gray-500">
+              {searchParams.query 
+                ? `Не вдалося знайти креаторів в категорії ${category.name} за запитом "${searchParams.query}". Спробуйте змінити критерії пошуку.`
+                : `В категорії ${category.name} поки що немає креаторів.`
+              }
+            </p>
+            <div class="mt-6 space-x-4">
+              <a 
+                href={`/categories/${slug}`}
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-pink-600 bg-pink-100 hover:bg-pink-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+              >
+                Очистити фільтри
+              </a>
+              <a 
+                href="/categories"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+              >
+                Переглянути інші категорії
+              </a>
+            </div>
+          </div>
+        )}
+        
+        <!-- Пагінація (нижня) -->
+        {creators.length > 0 && (hasPrevPage || hasMorePages) && (
+          <div class="mt-12 flex items-center justify-center space-x-4">
+            {hasPrevPage && (
+              <a 
+                href={createFilterUrl({ page: (currentPage - 1).toString() })}
+                class="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                ← Попередня сторінка
+              </a>
+            )}
+            <span class="px-4 py-2 text-sm text-gray-700">
+              Сторінка {currentPage} з {Math.ceil(totalCreators / (searchParams.pageSize || 24))}
+            </span>
+            {hasMorePages && (
+              <a 
+                href={createFilterUrl({ page: (currentPage + 1).toString() })}
+                class="px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Наступна сторінка →
+              </a>
+            )}
+          </div>
+        )}
+      </main>
+    </>
+  )}
+</BaseLayout>

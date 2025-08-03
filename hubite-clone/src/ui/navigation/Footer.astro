@@ -14,18 +14,18 @@ import { t } from '../../lib/i18n';
           <span class="text-xl font-bold">Hubite</span>
         </div>
         <p class="text-gray-400 text-sm max-w-md">
-          The ultimate directory for OnlyFans creators. Discover verified profiles, free accounts, and exclusive content from creators worldwide.
+          {t('seo.defaultDescription')}
         </p>
         <div class="mt-6">
           <p class="text-xs text-gray-500">
-            🔞 This website contains adult content and is intended for users 18 years and older.
+            🔞 {t('footer.adultContent')}
           </p>
         </div>
       </div>
       
       <!-- Quick Links -->
       <div>
-        <h3 class="text-sm font-semibold mb-4">Quick Links</h3>
+        <h3 class="text-sm font-semibold mb-4">{t('footer.quickLinks')}</h3>
         <ul class="space-y-2">
           <li>
             <a href="/" class="text-gray-400 hover:text-white text-sm transition-colors">
@@ -52,26 +52,26 @@ import { t } from '../../lib/i18n';
       
       <!-- Legal & Support -->
       <div>
-        <h3 class="text-sm font-semibold mb-4">Legal & Support</h3>
+        <h3 class="text-sm font-semibold mb-4">{t('footer.legalSupport')}</h3>
         <ul class="space-y-2">
           <li>
             <a href="/privacy" class="text-gray-400 hover:text-white text-sm transition-colors">
-              Privacy Policy
+              {t('footer.privacyPolicy')}
             </a>
           </li>
           <li>
             <a href="/terms" class="text-gray-400 hover:text-white text-sm transition-colors">
-              Terms of Service
+              {t('footer.termsOfService')}
             </a>
           </li>
           <li>
             <a href="/dmca" class="text-gray-400 hover:text-white text-sm transition-colors">
-              DMCA Policy
+              {t('footer.dmcaPolicy')}
             </a>
           </li>
           <li>
             <a href="/contact" class="text-gray-400 hover:text-white text-sm transition-colors">
-              Contact Us
+              {t('footer.contactUs')}
             </a>
           </li>
         </ul>
@@ -82,7 +82,7 @@ import { t } from '../../lib/i18n';
     <div class="mt-8 pt-8 border-t border-gray-800">
       <div class="flex flex-col md:flex-row justify-between items-center">
         <p class="text-gray-400 text-sm">
-          © {new Date().getFullYear()} Hubite. All rights reserved.
+          © {new Date().getFullYear()} Hubite. {t('footer.allRightsReserved')}
         </p>
         
         <!-- Social Links (for future use) -->
@@ -114,7 +114,7 @@ import { t } from '../../lib/i18n';
       <!-- Additional Disclaimers -->
       <div class="mt-4 text-center">
         <p class="text-xs text-gray-500">
-          We are not affiliated with OnlyFans. All trademarks belong to their respective owners.
+          {t('footer.disclaimer')}
         </p>
       </div>
     </div>

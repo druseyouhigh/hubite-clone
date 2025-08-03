@@ -1,0 +1,283 @@
+---
+// Static generation for categories page
+export const prerender = true;
+
+import BaseLayout from '../../ui/layouts/BaseLayout.astro';
+import CategoriesGrid from '../../ui/components/CategoriesGrid.astro';
+import { strapiClient } from '../../lib/strapi';
+import { t, ti } from '../../lib/i18n';
+import type { Category } from '../../types/strapi';
+
+// Отримуємо параметри пошуку з URL
+const url = new URL(Astro.request.url);
+const searchQuery = url.searchParams.get('search') || '';
+const sortBy = url.searchParams.get('sort') || 'name';
+const filterBy = url.searchParams.get('filter') || 'all';
+
+// Завантажуємо категорії з API
+let categories: Category[] = [];
+let filteredCategories: Category[] = [];
+let error: string | null = null;
+let totalCategories = 0;
+
+try {
+  const response = await strapiClient.getCategories();
+  categories = response.data || [];
+  totalCategories = categories.length;
+  
+  // Фільтруємо категорії за пошуковим запитом
+  filteredCategories = categories.filter(category => {
+    if (!searchQuery) return true;
+    
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      category.name.toLowerCase().includes(searchLower) ||
+      (category.description && category.description.toLowerCase().includes(searchLower))
+    );
+  });
+  
+  // Фільтруємо за типом
+  if (filterBy === 'popular') {
+    filteredCategories = filteredCategories.filter(category => category.isPopular);
+  }
+  
+  // Сортуємо категорії
+  filteredCategories.sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'popular':
+        // Спочатку популярні, потім за назвою
+        if (a.isPopular && !b.isPopular) return -1;
+        if (!a.isPopular && b.isPopular) return 1;
+        return a.name.localeCompare(b.name);
+      case 'newest':
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      default:
+        return a.name.localeCompare(b.name);
+    }
+  });
+  
+  console.log(`✅ Categories page loaded: ${filteredCategories.length}/${totalCategories} categories`);
+  
+} catch (err) {
+  error = ti('errors.dataLoadingError', { error: err instanceof Error ? err.message : t('errors.unknownError') });
+  console.error('❌ Categories Page API Error:', err);
+}
+
+// SEO та мета дані
+const pageTitle = searchQuery 
+  ? `${t('pages.categories.searchFor')} ${t('pages.categories.title').toLowerCase()}: ${searchQuery} - Hubite Clone`
+  : `${t('pages.categories.title')} - Hubite Clone`;
+
+const pageDescription = searchQuery 
+  ? `${t('pages.categories.searchResults')} "${searchQuery}". ${ti('pages.categories.foundResults', { count: filteredCategories.length })}.`
+  : `${t('pages.categories.subtitle')}. ${ti('pages.categories.foundResults', { count: totalCategories })}.`;
+
+// Статистика для відображення
+const popularCategoriesCount = categories.filter(cat => cat.isPopular).length;
+---
+
+<BaseLayout 
+  title={pageTitle}
+  description={pageDescription}
+>
+  <!-- Hero секція -->
+  <section class="bg-gradient-to-r from-pink-600 to-purple-600 py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h1 class="text-4xl font-bold text-white sm:text-5xl lg:text-6xl">
+          {t('pages.categories.title')}
+        </h1>
+        <p class="mt-4 text-xl text-pink-100 max-w-3xl mx-auto">
+          {t('pages.categories.subtitle')}
+        </p>
+        
+        <!-- Статистика -->
+        <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-lg mx-auto">
+          <div class="bg-white bg-opacity-20 rounded-lg p-4">
+            <div class="text-2xl font-bold text-white">{totalCategories}</div>
+            <div class="text-sm text-pink-100">{t('pages.categories.allCategories')}</div>
+          </div>
+          <div class="bg-white bg-opacity-20 rounded-lg p-4">
+            <div class="text-2xl font-bold text-white">{popularCategoriesCount}</div>
+            <div class="text-sm text-pink-100">{t('pages.categories.popularCategories')}</div>
+          </div>
+          <div class="bg-white bg-opacity-20 rounded-lg p-4">
+            <div class="text-2xl font-bold text-white">{filteredCategories.length}</div>
+            <div class="text-sm text-pink-100">{t('common.showAll')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Пошук та фільтри -->
+  <section class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <form method="GET" class="space-y-4 lg:space-y-0 lg:flex lg:items-center lg:space-x-4">
+        
+        <!-- Пошук -->
+        <div class="flex-1">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              name="search"
+              value={searchQuery}
+              placeholder="Пошук категорій за назвою або описом..."
+              class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-sm"
+            />
+          </div>
+        </div>
+        
+        <!-- Фільтр -->
+        <div class="lg:w-48">
+          <select 
+            name="filter" 
+            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-sm"
+          >
+            <option value="all" selected={filterBy === 'all'}>Всі категорії</option>
+            <option value="popular" selected={filterBy === 'popular'}>Тільки популярні</option>
+          </select>
+        </div>
+        
+        <!-- Сортування -->
+        <div class="lg:w-48">
+          <select 
+            name="sort" 
+            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-sm"
+          >
+            <option value="name" selected={sortBy === 'name'}>За назвою</option>
+            <option value="popular" selected={sortBy === 'popular'}>За популярністю</option>
+            <option value="newest" selected={sortBy === 'newest'}>Найновіші</option>
+          </select>
+        </div>
+        
+        <!-- Кнопка пошуку -->
+        <div class="lg:w-auto">
+          <button
+            type="submit"
+            class="w-full lg:w-auto px-6 py-3 bg-pink-600 text-white font-medium rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-colors"
+          >
+            Знайти
+          </button>
+        </div>
+      </form>
+      
+      <!-- Активні фільтри -->
+      {(searchQuery || filterBy !== 'all' || sortBy !== 'name') && (
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="text-sm text-gray-500">Активні фільтри:</span>
+          
+          {searchQuery && (
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+              Пошук: "{searchQuery}"
+              <a href="/categories" class="ml-2 text-pink-600 hover:text-pink-800">
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </a>
+            </span>
+          )}
+          
+          {filterBy === 'popular' && (
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+              Популярні
+              <a href={`/categories?search=${searchQuery}&sort=${sortBy}`} class="ml-2 text-yellow-600 hover:text-yellow-800">
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </a>
+            </span>
+          )}
+          
+          {sortBy !== 'name' && (
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              Сортування: {sortBy === 'popular' ? 'За популярністю' : 'Найновіші'}
+            </span>
+          )}
+          
+          <a 
+            href="/categories" 
+            class="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Очистити всі фільтри
+          </a>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <!-- Основний контент -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    
+    <!-- Заголовок результатів -->
+    {searchQuery && (
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-900">
+          Результати пошуку
+        </h2>
+        <p class="text-gray-600 mt-1">
+          {filteredCategories.length > 0 
+            ? `Знайдено ${filteredCategories.length} ${filteredCategories.length === 1 ? 'категорію' : 'категорій'} для запиту "${searchQuery}"`
+            : `Не знайдено категорій для запиту "${searchQuery}"`
+          }
+        </p>
+      </div>
+    )}
+    
+    <!-- Сітка категорій або повідомлення про помилку -->
+    {error ? (
+      <!-- Помилка завантаження -->
+      <div class="text-center py-12">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
+          <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="text-lg font-medium text-red-800 mb-2">Помилка завантаження</h3>
+          <p class="text-red-600 mb-4">{error}</p>
+          <button 
+            onclick="window.location.reload()" 
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Спробувати ще раз
+          </button>
+        </div>
+      </div>
+    ) : filteredCategories.length > 0 ? (
+      <!-- Сітка категорій -->
+      <CategoriesGrid 
+        categories={filteredCategories}
+        showDescription={true}
+        columns="auto"
+      />
+    ) : (
+      <!-- Пустий стан -->
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">Категорій не знайдено</h3>
+        <p class="mt-1 text-gray-500">
+          {searchQuery 
+            ? `Не вдалося знайти категорії за запитом "${searchQuery}". Спробуйте змінити критерії пошуку.`
+            : 'Наразі немає доступних категорій.'
+          }
+        </p>
+        <div class="mt-6">
+          <a 
+            href="/categories"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-pink-600 bg-pink-100 hover:bg-pink-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+          >
+            Переглянути всі категорії
+          </a>
+        </div>
+      </div>
+    )}
+  </main>
+</BaseLayout>

@@ -15,13 +15,14 @@ import type { Creator, Category, SearchParams } from '../types/strapi';
 const url = new URL(Astro.request.url);
 const searchParams: SearchParams = {
   query: url.searchParams.get('search') || undefined,
-  categories: url.searchParams.getAll('category').filter(Boolean),
-  sortBy: (url.searchParams.get('sort') as any) || 'relevance',
   page: parseInt(url.searchParams.get('page') || '1'),
   pageSize: 12,
-  isFree: url.searchParams.get('free') === 'true' ? true : undefined,
-  verified: url.searchParams.get('verified') === 'true' ? true : undefined,
-  featured: url.searchParams.get('featured') === 'true' ? true : undefined,
+  // Убираем проблемные параметры пока не настроим Strapi
+  // categories: url.searchParams.getAll('category').filter(Boolean),
+  // sortBy: (url.searchParams.get('sort') as any) || 'relevance',
+  // isFree: url.searchParams.get('free') === 'true' ? true : undefined,
+  // verified: url.searchParams.get('verified') === 'true' ? true : undefined,
+  // featured: url.searchParams.get('featured') === 'true' ? true : undefined,
 };
 
 // Load data from API
@@ -55,18 +56,18 @@ try {
   }
   
 } catch (err) {
-  error = `Помилка завантаження даних: ${err instanceof Error ? err.message : 'Невідома помилка'}`;
+  error = ti('errors.dataLoadingError', { error: err instanceof Error ? err.message : t('errors.unknownError') });
   console.error('❌ Homepage API Error:', err);
 }
 
 // SEO and meta data
 const pageTitle = searchParams.query 
-  ? `Пошук: ${searchParams.query} - Hubite Clone`
-  : 'Hubite Clone - Платформа для креаторів контенту';
+  ? `${t('pages.index.searchFor')}: ${searchParams.query} - Hubite Clone`
+  : `Hubite Clone - ${t('seo.homeDescription')}`;
 
 const pageDescription = searchParams.query
-  ? `Результати пошуку для "${searchParams.query}". Знайдено ${totalCreators} креаторів.`
-  : `Відкрийте для себе ${totalCreators} талановитих креаторів контенту. Ексклюзивний контент, верифіковані профілі, безпечна платформа.`;
+  ? `${t('pages.index.searchFor')} "${searchParams.query}". ${ti('pages.index.foundCreators', { count: totalCreators, type: totalCreators === 1 ? t('pages.index.creator') : t('pages.index.creators') })}.`
+  : t('seo.homeDescription');
 
 const currentPage = searchParams.page || 1;
 const hasMorePages = totalCreators > (currentPage * (searchParams.pageSize || 12));
@@ -87,14 +88,17 @@ const hasMorePages = totalCreators > (currentPage * (searchParams.pageSize || 12
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
           <h1 class="text-3xl font-bold text-gray-900 sm:text-4xl">
-            Результати пошуку
+            {t('pages.index.searchResults')}
           </h1>
           <p class="mt-2 text-lg text-gray-600">
-            Пошук за запитом: <span class="font-semibold">"{searchParams.query}"</span>
+            {t('pages.index.searchFor')}: <span class="font-semibold">"{searchParams.query}"</span>
           </p>
           {totalCreators > 0 && (
             <p class="mt-1 text-sm text-gray-500">
-              Знайдено {totalCreators} {totalCreators === 1 ? 'креатор' : 'креаторів'}
+              {ti('pages.index.foundCreators', { 
+                count: totalCreators, 
+                type: totalCreators === 1 ? t('pages.index.creator') : t('pages.index.creators') 
+              })}
             </p>
           )}
         </div>
